@@ -53,8 +53,8 @@ def launch_setup(context, *args, **kwargs):
     nodes_to_start = [
         map_server_node,
         amcl_node,
-        lifecycle_manager_node,
-        rviz]
+        lifecycle_manager_node]#,
+        #rviz]
     
     return nodes_to_start
 
