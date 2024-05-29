@@ -9,11 +9,9 @@ from launch_ros.actions import Node
 def generate_launch_description():
     cartographer_config_dir = os.path.join(get_package_share_directory('cartographer_slam'), 'config')
     cartographer_config_file = LaunchConfiguration('config_file')
-    config_file_arg = DeclareLaunchArgument('config_file', default_value='cartographer_sim.lua')
+    config_file_arg = DeclareLaunchArgument('config_file', default_value='cartographer_real.lua')
 
-    use_sim_time = True
-    if(cartographer_config_file == 'cartographer_real.lua'):
-        use_sim_time = False
+    use_sim_time = False
 
     cartographer_node = Node(
         package='cartographer_ros', 
