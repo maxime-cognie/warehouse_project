@@ -12,6 +12,7 @@ from geometry_msgs.msg import Twist
 from std_msgs.msg import String
 from geometry_msgs.msg import Polygon
 from geometry_msgs.msg import Point32
+from attach_shelf.srv import GoToLoading
 from nav2_simple_commander.robot_navigator import BasicNavigator, TaskResult
 from typing import NamedTuple
 
@@ -29,12 +30,12 @@ initial_position = Goal(
 # Shelf positions for picking
 shelf_position = Goal(
     'shelf_position',
-    [4.8, 1.1, 0.0],
-    [0.0, 0.0, 0.7660444, 0.6427876])
+    [4.8, 1.5, 0.0],
+    [0.0, 0.0, -0.7933533, 0.6087614])
 
 intermediate_position = Goal(
     'intermediate_position',
-    [1.65, 2.2, 0.0],
+    [1.6, 2.2, 0.0],
     [0.0, 0.0, 0.5735764, 0.819152])
 
 # Shipping destination for picked products
@@ -76,7 +77,10 @@ class ApproachShelf(Node):
     def __init__(self):
         super().__init__('approach_shelf_node')
         self.publisher_ = self.create_publisher(Twist, 'diffbot_base_controller/cmd_vel_unstamped', 1)
-       
+        self.client_ = self.create_client(GoToLoading,"approach_shelf")
+        while not self.client_.wait_for_service(timeout_sec=1.0):
+            self.get_logger().info('service not available, waiting again...')
+        self.request_ = GoToLoading.Request()       
 
     # move the robot for mv_time
     # move the robot forward: direction = 1, backward: direction = -1
@@ -102,6 +106,10 @@ class ApproachShelf(Node):
         for i in range(int(mv_time / sleep_time)):
             self.publisher_.publish(cmd_vel)
             time.sleep(sleep_time)
+    
+    def call_approach_shelf_server(self):
+        self.request_.attach_to_shelf = True
+        self.future = self.client_.call_async(self.request_)
     
 class ElevatorHandler(Node):
     def __init__(self):
@@ -165,19 +173,13 @@ def nav_to_pose(pose, navigator):
         i = i + 1
         feedback = navigator.getFeedback()
         if feedback and i % 5 == 0:
-            print('Estimated time of arrival at ' + pose.name + ' for worker: ' + '{0:.0f}'.format(
+            print('Estimated time of arrival at ' + pose.name + + '{0:.0f}'.format(
                       Duration.from_msg(feedback.estimated_time_remaining).nanoseconds / 1e9)
                   + ' seconds.')
     
     return navigator.getResult()
 
 def main(argv):
-    global sim # global parameter that indicates if using simulated robot or not
-    sim = True
-    # retrieving the sim parameter from command-line
-    if (len(argv) > 1):
-        sim = argv[2]
-
     rclpy.init()
 
     # instantiates the navigator and all the node required for the task 
@@ -213,15 +215,31 @@ def main(argv):
         print('The robot arrived to its destination!')
         time.sleep(1)
 
-    mv_robot.move_robot(5, -1) # move the robot under the shelf
+    mv_robot.call_approach_shelf_server()
+    while rclpy.ok():
+        rclpy.spin_once(mv_robot)
+        if mv_robot.future.done():
+            try:
+                response = mv_robot.future.result()
+            except Exception as e:
+                mv_robot.get_logger().info(
+                    'Service call failed %r' % (e,))
+            else:
+                mv_robot.get_logger().info(f'Result of service call: {response.complete}')                
+            break
+    if response.complete != True:
+        exit(-1)
+
+    mv_robot.move_robot(2.5) # move the robot under the shelf
+    time.sleep(1.5)
     elv_handler.elevator_up() # lift the elevator to attach the shelf to the robot
     fp_updater.publish_footprint('robot+shelf') # set the new footprint of the robot
 
     time.sleep(1)
 
     # move the robot to avoid it getting stuck
-    mv_robot.rotate_robot(3.5)  
-    mv_robot.move_robot(4)
+    mv_robot.move_robot(6, -1)  
+    mv_robot.rotate_robot(13, -1)
 
     result = nav_to_pose(intermediate_position, navigator)
 
@@ -253,10 +271,11 @@ def main(argv):
         print('The robot arrived to its destination!')
         time.sleep(1)
     
-    elv_handler.elevator_down() # 
+    elv_handler.elevator_down() # release the shelf
     fp_updater.publish_footprint('robot')
-    time.sleep(1)
+    time.sleep(0.5)
 
+    # move the robot backward to unstuck it
     mv_robot.move_robot(7, -1)
 
     result = nav_to_pose(initial_position, navigator)

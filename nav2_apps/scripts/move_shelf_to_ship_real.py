@@ -23,25 +23,25 @@ class Goal(NamedTuple):
 # Initial position of the robot
 initial_position = Goal(
     'initial_position',
-    [-1.15, 2.3, 0.0],
-    [0.0, 0.0, 0.0, 1.0])
+    [-0.648, -0.662, 0.0],
+    [0.0, 0.0, 0.306, 0.952])
 
 # Shelf positions for picking
 shelf_position = Goal(
     'shelf_position',
-    [4.8, 1.1, 0.0],
-    [0.0, 0.0, 0.7660444, 0.6427876])
+    [3.89, 0.25, 0.0],
+    [0.0, 0.0, 0.5777, 0.8161])
 
 intermediate_position = Goal(
     'intermediate_position',
-    [1.65, 2.2, 0.0],
-    [0.0, 0.0, 0.5735764, 0.819152])
+    [1.0, 0.43, 0.0],
+    [0.0, 0.0, 0.8680, 0.4966])
 
 # Shipping destination for picked products
 shipping_position = Goal(
     'shipping_position',
-    [1.65, 3.45, 0.0],
-    [0.0, 0.0, 0.5735764, 0.819152])
+    [1.0, 1.3, 0.0],
+    [0.0, 0.0, 0.8680, 0.4966])
 
 
 # footprint of the robot
@@ -154,6 +154,8 @@ def nav_to_pose(pose, navigator):
     destination_pose.header.stamp = navigator.get_clock().now().to_msg()
     destination_pose.pose.position.x = pose.position[0]
     destination_pose.pose.position.y = pose.position[1]
+    destination_pose.pose.orientation.x = 0.0
+    destination_pose.pose.orientation.y = 0.0
     destination_pose.pose.orientation.z = pose.orientation[2]
     destination_pose.pose.orientation.w = pose.orientation[3]
     print('Received request to move to ' + pose.name + '.')
@@ -172,12 +174,6 @@ def nav_to_pose(pose, navigator):
     return navigator.getResult()
 
 def main(argv):
-    global sim # global parameter that indicates if using simulated robot or not
-    sim = True
-    # retrieving the sim parameter from command-line
-    if (len(argv) > 1):
-        sim = argv[2]
-
     rclpy.init()
 
     # instantiates the navigator and all the node required for the task 
@@ -192,87 +188,88 @@ def main(argv):
     initial_pose.header.stamp = navigator.get_clock().now().to_msg()
     initial_pose.pose.position.x = initial_position.position[0]
     initial_pose.pose.position.y = initial_position.position[1]
+    initial_pose.pose.orientation.z = initial_position.orientation[2]
     initial_pose.pose.orientation.w = initial_position.orientation[3]
     navigator.setInitialPose(initial_pose)
 
     # Wait for navigation to be fully activated 
     navigator.waitUntilNav2Active()
 
-    result = nav_to_pose(shelf_position, navigator)
+    # result = nav_to_pose(shelf_position, navigator)
 
-    if result == TaskResult.CANCELED:
-        print('Task was canceled. Returning to staging point...')
-        result = nav_to_pose(initial_position, navigator)
-        exit(1)
+    # if result == TaskResult.CANCELED:
+    #     print('Task was canceled. Returning to staging point...')
+    #     result = nav_to_pose(initial_position, navigator)
+    #     exit(1)
 
-    elif result == TaskResult.FAILED:
-        print('Task failed!')
-        exit(-1)
+    # elif result == TaskResult.FAILED:
+    #     print('Task failed!')
+    #     exit(-1)
     
-    elif result == TaskResult.SUCCEEDED:
-        print('The robot arrived to its destination!')
-        time.sleep(1)
+    # elif result == TaskResult.SUCCEEDED:
+    #     print('The robot arrived to its destination!')
+    #     time.sleep(1)
 
-    mv_robot.move_robot(5, -1) # move the robot under the shelf
-    elv_handler.elevator_up() # lift the elevator to attach the shelf to the robot
-    fp_updater.publish_footprint('robot+shelf') # set the new footprint of the robot
+    # mv_robot.move_robot(5, -1) # move the robot under the shelf
+    # elv_handler.elevator_up() # lift the elevator to attach the shelf to the robot
+    # fp_updater.publish_footprint('robot+shelf') # set the new footprint of the robot
 
-    time.sleep(1)
+    # time.sleep(1)
 
-    # move the robot to avoid it getting stuck
-    mv_robot.rotate_robot(3.5)  
-    mv_robot.move_robot(4)
+    # # move the robot to avoid it getting stuck
+    # mv_robot.rotate_robot(3.5)  
+    # mv_robot.move_robot(4)
 
-    result = nav_to_pose(intermediate_position, navigator)
+    # result = nav_to_pose(intermediate_position, navigator)
 
-    if result == TaskResult.CANCELED:
-        print('Task was canceled. Returning to staging point...')
-        result = nav_to_pose(initial_position, navigator)
-        exit(1)
+    # if result == TaskResult.CANCELED:
+    #     print('Task was canceled. Returning to staging point...')
+    #     result = nav_to_pose(initial_position, navigator)
+    #     exit(1)
 
-    elif result == TaskResult.FAILED:
-        print('Task failed!')
-        exit(-1)
+    # elif result == TaskResult.FAILED:
+    #     print('Task failed!')
+    #     exit(-1)
     
-    elif result == TaskResult.SUCCEEDED:
-        print('The robot arrived to its destination!')
-        time.sleep(1)
+    # elif result == TaskResult.SUCCEEDED:
+    #     print('The robot arrived to its destination!')
+    #     time.sleep(1)
 
-    result = nav_to_pose(shipping_position, navigator)
+    # result = nav_to_pose(shipping_position, navigator)
 
-    if result == TaskResult.CANCELED:
-        print('Task was canceled. Returning to staging point...')
-        result = nav_to_pose(initial_position, navigator)
-        exit(1)
+    # if result == TaskResult.CANCELED:
+    #     print('Task was canceled. Returning to staging point...')
+    #     result = nav_to_pose(initial_position, navigator)
+    #     exit(1)
 
-    elif result == TaskResult.FAILED:
-        print('Task failed!')
-        exit(-1)
+    # elif result == TaskResult.FAILED:
+    #     print('Task failed!')
+    #     exit(-1)
     
-    elif result == TaskResult.SUCCEEDED:
-        print('The robot arrived to its destination!')
-        time.sleep(1)
+    # elif result == TaskResult.SUCCEEDED:
+    #     print('The robot arrived to its destination!')
+    #     time.sleep(1)
     
-    elv_handler.elevator_down() # 
-    fp_updater.publish_footprint('robot')
-    time.sleep(1)
+    # elv_handler.elevator_down() # 
+    # fp_updater.publish_footprint('robot')
+    # time.sleep(1)
 
-    mv_robot.move_robot(7, -1)
+    # mv_robot.move_robot(7, -1)
 
-    result = nav_to_pose(initial_position, navigator)
+    # result = nav_to_pose(initial_position, navigator)
 
-    if result == TaskResult.CANCELED:
-        print('Task was canceled. Returning to staging point...')
-        result = nav_to_pose(initial_position, navigator)
-        exit(1)
+    # if result == TaskResult.CANCELED:
+    #     print('Task was canceled. Returning to staging point...')
+    #     result = nav_to_pose(initial_position, navigator)
+    #     exit(1)
 
-    elif result == TaskResult.FAILED:
-        print('Task failed!')
-        exit(-1)
+    # elif result == TaskResult.FAILED:
+    #     print('Task failed!')
+    #     exit(-1)
     
-    elif result == TaskResult.SUCCEEDED:
-        print('The robot arrived to its destination!')
-        time.sleep(1)
+    # elif result == TaskResult.SUCCEEDED:
+    #     print('The robot arrived to its destination!')
+    #     time.sleep(1)
     
     print('mission done!')
 

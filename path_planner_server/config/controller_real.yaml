@@ -92,6 +92,7 @@ local_costmap:
         observation_sources: scan
         scan:
           topic: /scan
+          sensor_frame: robot_front_laser_link
           max_obstacle_height: 2.0
           clearing: True
           marking: True

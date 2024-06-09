@@ -1,4 +1,5 @@
 import os
+import time
 from ament_index_python import get_package_share_directory
 
 from launch import LaunchDescription
@@ -10,7 +11,7 @@ def launch_setup(context, *args, **kwargs):
     map_file = context.perform_substitution(LaunchConfiguration('map_file'))
     print(f'map file : {map_file}')
 
-    use_sim_time = False if map_file == 'warehouse_map_real.yaml' else True
+    use_sim_time = False if 'real' in map_file else True
 
     map_file_path = os.path.join(get_package_share_directory('map_server'), 'config', map_file)
     map_server_node = Node(
@@ -22,7 +23,7 @@ def launch_setup(context, *args, **kwargs):
                     {'yaml_filename': map_file_path} 
         ])
     
-    amcl_config_file = 'amcl_real_config.yaml' if map_file == 'warehouse_map_real.yaml' else 'amcl_config.yaml'
+    amcl_config_file = 'amcl_real_config.yaml' if 'real' in map_file else 'amcl_config.yaml'
     amcl_config_yaml = os.path.join(get_package_share_directory('localization_server'), 'config', amcl_config_file)
     amcl_node = Node(
         package='nav2_amcl',

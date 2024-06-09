@@ -24,17 +24,20 @@ def launch_setup(context, *args, **kwargs):
         bt_navigator_yaml = os.path.join(pkg_share_dir, 'bt.yaml')
         recovery_yaml = os.path.join(pkg_share_dir, 'recovery.yaml')
         cmd_vel_topic = 'diffbot_base_controller/cmd_vel_unstamped'
+        rviz_config_file = os.path.join(pkg_share_dir, 'pathplanning.rviz')
         use_sim_time = True
     else:
         config_dir = pkg_share_dir
         filters_yaml = ''
         if(filters == 'True'):
             config_dir = filter_config_dir
+            filters_yaml = os.path.join(config_dir, 'filters_real.yaml')
         nav2_yaml = os.path.join(config_dir, 'planner_server_real.yaml')
         controller_yaml = os.path.join(config_dir, 'controller_real.yaml')
         bt_navigator_yaml = os.path.join(pkg_share_dir, 'bt_real.yaml')
         recovery_yaml = os.path.join(pkg_share_dir, 'recovery_real.yaml')
         cmd_vel_topic = 'cmd_vel'
+        rviz_config_file = os.path.join(pkg_share_dir, 'pathplanning_real.rviz')
         use_sim_time = False
 
     planner_node = Node(
@@ -105,7 +108,6 @@ def launch_setup(context, *args, **kwargs):
                     {'node_names': nav2_nodes}]
         )
     
-    rviz_config_file = os.path.join(get_package_share_directory('path_planner_server'), 'config', 'pathplanning.rviz')
     rviz = Node(
         package='rviz2',
         executable='rviz2',
