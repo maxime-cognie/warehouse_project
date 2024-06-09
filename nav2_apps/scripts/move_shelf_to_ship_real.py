@@ -29,8 +29,8 @@ initial_position = Goal(
 # Shelf positions for picking
 shelf_position = Goal(
     'shelf_position',
-    [3.89, 0.25, 0.0],
-    [0.0, 0.0, 0.5777, 0.8161])
+    [4.0, 0.33, 0.0],
+    [0.0, 0.0, -0.4814, 0.8764])
 
 intermediate_position = Goal(
     'intermediate_position',
@@ -75,7 +75,7 @@ robot_shelf_fp = [
 class ApproachShelf(Node):
     def __init__(self):
         super().__init__('approach_shelf_node')
-        self.publisher_ = self.create_publisher(Twist, 'diffbot_base_controller/cmd_vel_unstamped', 1)
+        self.publisher_ = self.create_publisher(Twist, 'cmd_vel', 1)
        
 
     # move the robot for mv_time
@@ -195,30 +195,46 @@ def main(argv):
     # Wait for navigation to be fully activated 
     navigator.waitUntilNav2Active()
 
-    # result = nav_to_pose(shelf_position, navigator)
+    result = nav_to_pose(shelf_position, navigator)
 
-    # if result == TaskResult.CANCELED:
-    #     print('Task was canceled. Returning to staging point...')
-    #     result = nav_to_pose(initial_position, navigator)
-    #     exit(1)
+    if result == TaskResult.CANCELED:
+        print('Task was canceled. Returning to staging point...')
+        result = nav_to_pose(initial_position, navigator)
+        exit(1)
 
-    # elif result == TaskResult.FAILED:
-    #     print('Task failed!')
-    #     exit(-1)
+    elif result == TaskResult.FAILED:
+        print('Task failed!')
+        exit(-1)
     
-    # elif result == TaskResult.SUCCEEDED:
-    #     print('The robot arrived to its destination!')
-    #     time.sleep(1)
+    elif result == TaskResult.SUCCEEDED:
+        print('The robot arrived to its destination!')
+        time.sleep(1)
 
-    # mv_robot.move_robot(5, -1) # move the robot under the shelf
-    # elv_handler.elevator_up() # lift the elevator to attach the shelf to the robot
-    # fp_updater.publish_footprint('robot+shelf') # set the new footprint of the robot
+    mv_robot.call_approach_shelf_server()
+    while rclpy.ok():
+        rclpy.spin_once(mv_robot)
+        if mv_robot.future.done():
+            try:
+                response = mv_robot.future.result()
+            except Exception as e:
+                mv_robot.get_logger().info(
+                    'Service call failed %r' % (e,))
+            else:
+                mv_robot.get_logger().info(f'Result of service call: {response.complete}')                
+            break
+    if response.complete != True:
+        exit(-1)
 
-    # time.sleep(1)
+    mv_robot.move_robot(2.5) # move the robot under the shelf
+    time.sleep(1.5)
+    elv_handler.elevator_up() # lift the elevator to attach the shelf to the robot
+    fp_updater.publish_footprint('robot+shelf') # set the new footprint of the robot
+
+    time.sleep(1)
 
     # # move the robot to avoid it getting stuck
-    # mv_robot.rotate_robot(3.5)  
-    # mv_robot.move_robot(4)
+    # mv_robot.move_robot(6, -1)  
+    # mv_robot.rotate_robot(13, -1)
 
     # result = nav_to_pose(intermediate_position, navigator)
 
@@ -250,10 +266,11 @@ def main(argv):
     #     print('The robot arrived to its destination!')
     #     time.sleep(1)
     
-    # elv_handler.elevator_down() # 
+    # elv_handler.elevator_down() # release the shelf
     # fp_updater.publish_footprint('robot')
-    # time.sleep(1)
+    # time.sleep(0.5)
 
+    # # move the robot backward to unstuck it
     # mv_robot.move_robot(7, -1)
 
     # result = nav_to_pose(initial_position, navigator)

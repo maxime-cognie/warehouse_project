@@ -25,7 +25,7 @@ pathplanning_launch = IncludeLaunchDescription(
                 'pathplanner.launch.py'])
         ]),
         launch_arguments={
-            'sim': 'False'
+            'sim': 'False',
             'filters': 'True'
         }.items()
     )
