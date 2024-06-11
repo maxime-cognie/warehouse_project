@@ -12,6 +12,7 @@ from geometry_msgs.msg import Twist
 from std_msgs.msg import String
 from geometry_msgs.msg import Polygon
 from geometry_msgs.msg import Point32
+from attach_shelf.srv import GoToLoading
 from nav2_simple_commander.robot_navigator import BasicNavigator, TaskResult
 from typing import NamedTuple
 
@@ -23,25 +24,25 @@ class Goal(NamedTuple):
 # Initial position of the robot
 initial_position = Goal(
     'initial_position',
-    [-0.648, -0.662, 0.0],
-    [0.0, 0.0, 0.306, 0.952])
+    [0.0, 0.0, 0.0],
+    [0.0, 0.0, -0.0871557, 0.9961947])
 
 # Shelf positions for picking
 shelf_position = Goal(
     'shelf_position',
-    [4.0, 0.33, 0.0],
-    [0.0, 0.0, -0.4814, 0.8764])
+    [4.3, -1.2, 0.0],
+    [0.0, 0.0, -0.819152, 0.5735764 ])
 
 intermediate_position = Goal(
     'intermediate_position',
-    [1.0, 0.43, 0.0],
+    [2.3, 0.0, 0.0],
     [0.0, 0.0, 0.8680, 0.4966])
 
 # Shipping destination for picked products
 shipping_position = Goal(
     'shipping_position',
-    [1.0, 1.3, 0.0],
-    [0.0, 0.0, 0.8680, 0.4966])
+    [2.3, 0.9, 0.0],
+    [0.0, 0.0, 0.606, 0.795])
 
 
 # footprint of the robot
@@ -76,7 +77,10 @@ class ApproachShelf(Node):
     def __init__(self):
         super().__init__('approach_shelf_node')
         self.publisher_ = self.create_publisher(Twist, 'cmd_vel', 1)
-       
+        self.client_ = self.create_client(GoToLoading,'approach_shelf')
+        while not self.client_.wait_for_service(timeout_sec=1.0):
+            self.get_logger().info('service not available, waiting again...')
+        self.request_ = GoToLoading.Request()       
 
     # move the robot for mv_time
     # move the robot forward: direction = 1, backward: direction = -1
@@ -102,6 +106,10 @@ class ApproachShelf(Node):
         for i in range(int(mv_time / sleep_time)):
             self.publisher_.publish(cmd_vel)
             time.sleep(sleep_time)
+    
+    def call_approach_shelf_server(self):
+        self.request_.attach_to_shelf = True
+        self.future = self.client_.call_async(self.request_)
     
 class ElevatorHandler(Node):
     def __init__(self):
@@ -130,7 +138,7 @@ class FootprintUpdater(Node):
 
     # publish to the global and local costmaps one of the robot footprint depending on the shape parameter
     def publish_footprint(self, shape='robot'):
-        r_s_inf_radius = ParameterValue(type=ParameterType.PARAMETER_DOUBLE, double_value=0.4)
+        r_s_inf_radius = ParameterValue(type=ParameterType.PARAMETER_DOUBLE, double_value=0.35)
         r_inf_radius = ParameterValue(type=ParameterType.PARAMETER_DOUBLE, double_value=0.2)
         if(shape == 'robot'):
             self.polygon_.points = robot_fp
@@ -154,8 +162,6 @@ def nav_to_pose(pose, navigator):
     destination_pose.header.stamp = navigator.get_clock().now().to_msg()
     destination_pose.pose.position.x = pose.position[0]
     destination_pose.pose.position.y = pose.position[1]
-    destination_pose.pose.orientation.x = 0.0
-    destination_pose.pose.orientation.y = 0.0
     destination_pose.pose.orientation.z = pose.orientation[2]
     destination_pose.pose.orientation.w = pose.orientation[3]
     print('Received request to move to ' + pose.name + '.')
@@ -167,7 +173,7 @@ def nav_to_pose(pose, navigator):
         i = i + 1
         feedback = navigator.getFeedback()
         if feedback and i % 5 == 0:
-            print('Estimated time of arrival at ' + pose.name + ' for worker: ' + '{0:.0f}'.format(
+            print('Estimated time of arrival at ' + pose.name + ': {0:.0f}'.format(
                       Duration.from_msg(feedback.estimated_time_remaining).nanoseconds / 1e9)
                   + ' seconds.')
     
@@ -225,68 +231,68 @@ def main(argv):
     if response.complete != True:
         exit(-1)
 
-    mv_robot.move_robot(2.5) # move the robot under the shelf
-    time.sleep(1.5)
+    mv_robot.move_robot(1.3)
+    time.sleep(1)
     elv_handler.elevator_up() # lift the elevator to attach the shelf to the robot
+    time.sleep(1.5)
     fp_updater.publish_footprint('robot+shelf') # set the new footprint of the robot
+    time.sleep(0.5)
 
+    # move the robot to avoid it getting stuck
+    mv_robot.move_robot(9, -1)  
+    mv_robot.rotate_robot(8, -1)
+
+    result = nav_to_pose(intermediate_position, navigator)
+
+    if result == TaskResult.CANCELED:
+        print('Task was canceled. Returning to staging point...')
+        result = nav_to_pose(initial_position, navigator)
+        exit(1)
+
+    elif result == TaskResult.FAILED:
+        print('Task failed!')
+        exit(-1)
+    
+    elif result == TaskResult.SUCCEEDED:
+        print('The robot arrived to its destination!')
+        time.sleep(1)
+
+    result = nav_to_pose(shipping_position, navigator)
+
+    if result == TaskResult.CANCELED:
+        print('Task was canceled. Returning to staging point...')
+        result = nav_to_pose(initial_position, navigator)
+        exit(1)
+
+    elif result == TaskResult.FAILED:
+        print('Task failed!')
+        exit(-1)
+    
+    elif result == TaskResult.SUCCEEDED:
+        print('The robot arrived to its destination!')
+        time.sleep(1)
+    
+    elv_handler.elevator_down() # release the shelf
+    fp_updater.publish_footprint('robot')
     time.sleep(1)
 
-    # # move the robot to avoid it getting stuck
-    # mv_robot.move_robot(6, -1)  
-    # mv_robot.rotate_robot(13, -1)
+    # move the robot backward to unstuck it
+    mv_robot.move_robot(10, -1)
 
-    # result = nav_to_pose(intermediate_position, navigator)
+    result = nav_to_pose(initial_position, navigator)
 
-    # if result == TaskResult.CANCELED:
-    #     print('Task was canceled. Returning to staging point...')
-    #     result = nav_to_pose(initial_position, navigator)
-    #     exit(1)
+    if result == TaskResult.CANCELED:
+        print('Task was canceled. Returning to staging point...')
+        result = nav_to_pose(initial_position, navigator)
+        exit(1)
 
-    # elif result == TaskResult.FAILED:
-    #     print('Task failed!')
-    #     exit(-1)
+    elif result == TaskResult.FAILED:
+        print('Task failed!')
+        exit(-1)
     
-    # elif result == TaskResult.SUCCEEDED:
-    #     print('The robot arrived to its destination!')
-    #     time.sleep(1)
-
-    # result = nav_to_pose(shipping_position, navigator)
-
-    # if result == TaskResult.CANCELED:
-    #     print('Task was canceled. Returning to staging point...')
-    #     result = nav_to_pose(initial_position, navigator)
-    #     exit(1)
-
-    # elif result == TaskResult.FAILED:
-    #     print('Task failed!')
-    #     exit(-1)
-    
-    # elif result == TaskResult.SUCCEEDED:
-    #     print('The robot arrived to its destination!')
-    #     time.sleep(1)
-    
-    # elv_handler.elevator_down() # release the shelf
-    # fp_updater.publish_footprint('robot')
-    # time.sleep(0.5)
-
-    # # move the robot backward to unstuck it
-    # mv_robot.move_robot(7, -1)
-
-    # result = nav_to_pose(initial_position, navigator)
-
-    # if result == TaskResult.CANCELED:
-    #     print('Task was canceled. Returning to staging point...')
-    #     result = nav_to_pose(initial_position, navigator)
-    #     exit(1)
-
-    # elif result == TaskResult.FAILED:
-    #     print('Task failed!')
-    #     exit(-1)
-    
-    # elif result == TaskResult.SUCCEEDED:
-    #     print('The robot arrived to its destination!')
-    #     time.sleep(1)
+    elif result == TaskResult.SUCCEEDED:
+        print('The robot arrived to its destination!')
+        time.sleep(1)
     
     print('mission done!')
 

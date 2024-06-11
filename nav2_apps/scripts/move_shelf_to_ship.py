@@ -173,7 +173,7 @@ def nav_to_pose(pose, navigator):
         i = i + 1
         feedback = navigator.getFeedback()
         if feedback and i % 5 == 0:
-            print('Estimated time of arrival at ' + pose.name + + '{0:.0f}'.format(
+            print('Estimated time of arrival at ' + pose.name + '{0:.0f}'.format(
                       Duration.from_msg(feedback.estimated_time_remaining).nanoseconds / 1e9)
                   + ' seconds.')
     

@@ -17,7 +17,7 @@ global_costmap:
       global_frame: map
       robot_base_frame: robot_base_link
       use_sim_time: False
-      robot_radius: 0.3
+      footprint: '[[0.307, 0.0],[0.284, 0.125],[0.219, 0.222],[0.121, 0.287],[0.006, 0.310],[-0.12, 0.286],[-0.22, 0.221],[-0.28, 0.124],[-0.31, 0.0],[-0.28, -0.125],[-0.22, -0.222],[-0.12, -0.287],[-0.01, -0.310],[0.122, -0.286],[0.220, -0.221],[0.284, -0.124]]'
       resolution: 0.05
       track_unknown_space: true
       plugins: ["static_layer", "inflation_layer", "obstacle_layer"]
